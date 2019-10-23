@@ -9,6 +9,7 @@ from os import chdir, getcwd, listdir, environ
 from sys import stdin, stdout
 from time import sleep
 from random import randint
+from sys import argv
 
 from configparser import ConfigParser
 from tqdm import tqdm
@@ -122,6 +123,11 @@ class dockerfile_creater():
         self.ttag = config.get("variable", "test_tag")
         self.ltag = config.get("variable", "latest_tag")
         self.ftag = config.get("variable", "fail_tag")
+        if len(argv) > 1:
+            if argv[1] == "-p":
+                self.production = True
+        else:
+            self.production = False
 
     # Schreibe Config
 
@@ -372,7 +378,7 @@ class dockerfile_creater():
         if self.existst_tag("%s:%s" % (self.tag_to_rep(), self.ttag)):
             call(self.dockerrmi + ["%s:%s" % (self.tag_to_rep(), self.ttag)])
 
-    def test_image(self, cmd, waittime=config.getint("variable", "test_waittime"), noservice=False, toreg=True, httpbase=None, production=False):
+    def test_image(self, cmd, waittime=config.getint("variable", "test_waittime"), noservice=False, toreg=True, httpbase=None):
         """Testet das generierte Image\n\
         Parameter:\n\
             waittime: Wartezeit bis der Test ausgefuert werden soll in Sekunden um denn Dienst Zeit zu geben zu starten (Default: 20s)\n\
@@ -404,7 +410,7 @@ class dockerfile_creater():
         self.docker_deamon.stop(container["Id"])
         self.docker_deamon.remove_container(container["Id"])
         if resolt:
-            self.to_registry(push=toreg, production=production)
+            self.to_registry(push=toreg)
         else:
             if not resolt:
                 self.image_fail()
@@ -412,7 +418,7 @@ class dockerfile_creater():
 
     # Registry Methoden
 
-    def to_registry(self, reg=None, push=True, production=False):
+    def to_registry(self, reg=None, push=True):
         """Bennent ein Docker-Image um fuer die Registry (Tagt die alte Version auf old um)\n\
         Parameter: \n\
             reg: Rgistry URL (Default: self.registry)\n\
@@ -424,7 +430,7 @@ class dockerfile_creater():
 
         self.retag_and_push(self.tag, "%s/%s" % (reg, self.tag), push)
         self.retag_and_push(self.tag, "%s/%s:%s" % (reg, self.tag_to_rep(), self.ltag), push)
-        if production:
+        if self.production:
             self.retag_and_push(self.tag, "%s/%s:%s" % (reg, self.tag_to_rep(), self.ptag), push)
 
     def retag_and_push(self, oldtag, newtag, push=True):
